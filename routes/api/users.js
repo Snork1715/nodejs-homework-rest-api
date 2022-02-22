@@ -30,7 +30,7 @@ router.post("/verify", async (req, res, next) => {
       subject: "SENDGRID mail verification",
       html: `<a target="_blank" href='http://localhost:${PORT}/api/users/verify/${user.verificationToken}'>Please confirm you email!</a>`,
     };
-    sendMail(mail);
+    await sendMail(mail);
     res.json({
       message: "Verification email sent",
     });
