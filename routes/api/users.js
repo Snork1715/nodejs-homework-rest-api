@@ -7,10 +7,56 @@ const Jimp = require("jimp");
 const router = express.Router();
 
 const { User, schemas } = require("../../models/user");
+const { PORT } = process.env;
+const { sendMail } = require("../../helpers");
 
 const { authenticate, upload } = require("../../middlewares");
 
 const avatarsDir = path.join(__dirname, "../../", "public", "avatars");
+
+router.post("/verify", async (req, res, next) => {
+  try {
+    const { error } = schemas.verify.validate(req.body);
+    if (error) {
+      throw new CreateError(error.message);
+    }
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (user.verify) {
+      throw new CreateError(400, "Verification has already been passed");
+    }
+    const mail = {
+      to: email,
+      subject: "SENDGRID mail verification",
+      html: `<a target="_blank" href='http://localhost:${PORT}/api/users/verify/${user.verificationToken}'>Please confirm you email!</a>`,
+    };
+    await sendMail(mail);
+    res.json({
+      message: "Verification email sent",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/verify/:verificationToken", async (req, res, next) => {
+  try {
+    const { verificationToken } = req.params;
+    const user = User.findOne({ verificationToken });
+    if (!user) {
+      throw new CreateError(404, "Not found");
+    }
+    await User.findByIdAndUpdate(user._id, {
+      verificationToken: "",
+      verify: true,
+    });
+    res.json({
+      message: "Verification successful",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.patch(
   "/avatars",
